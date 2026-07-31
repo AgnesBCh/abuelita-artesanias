@@ -1,0 +1,30 @@
+.product-share {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+  font-size: 13px;
+  color: #666;
+}
+
+.share-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.share-btn {
+  background: none;
+  border: 1px solid rgba(0,0,0,0.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-carbon);
+}
+
+.share-btn:hover {
+  background: var(--color-carbon);
+  color: #fff;
+  border-color: var(--color-carbon);
+}
