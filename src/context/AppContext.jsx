@@ -25,6 +25,16 @@ import {
  * refleja al instante en todos los clientes conectados.
  */
 
+const generarCodigo = (datos, categoria) => {
+  console.log('Generando código para datos:', datos, 'y categoría:', categoria);
+  if (datos.codigo && datos.codigo.trim() !== '') return datos.codigo;
+  
+  const prefijo = categoria?.siglas || 'PROD';
+  const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
+  return `${prefijo.toUpperCase()}-${numeroAleatorio}`;
+};
+
+
 const slugify = (texto) =>
   String(texto || '')
     .toLowerCase()
@@ -58,6 +68,7 @@ const transformCategoria = (rec) => ({
   slug: rec.slug || '',
   nombre: rec.nombre || '',
   descripcion: rec.descripcion || '',
+  siglas: rec.siglas || '',
   imagenes: urlsImagenes(rec, 'portada', fallbackCategoria(rec.slug)),
   _portadaArchivos: Array.isArray(rec.portada) ? rec.portada : [],
   _raw: rec,
@@ -168,45 +179,68 @@ export function AppProvider({ children }) {
 
   const crearProducto = useCallback(async (datos) => {
     const fd = new FormData();
+     // 1. Buscar la categoría completa para obtener sus siglas
+    const categoriaSeleccionada = categorias.find(c => c.slug === datos.categoriaSlug);
+    const codigoFinal = generarCodigo(datos, categoriaSeleccionada);
+    
+    const nombreCategoria = categoriaSeleccionada ? categoriaSeleccionada.nombre : datos.categoria; 
+
     const slug = datos.slug?.trim() || slugify(datos.nombre);
+   
+   
     texto(fd, 'slug', slug);
     texto(fd, 'nombre', datos.nombre);
     texto(fd, 'categoriaSlug', datos.categoriaSlug);
-    texto(fd, 'categoria', datos.categoria);
+    texto(fd, 'categoria', nombreCategoria);
     texto(fd, 'descripcion', datos.descripcion);
     texto(fd, 'precio', datos.precio);
     texto(fd, 'tiempoElaboracion', datos.tiempoElaboracion);
     texto(fd, 'disponibilidad', datos.disponibilidad);
-    texto(fd, 'codigo', datos.codigo);
+    texto(fd, 'codigo', codigoFinal);
     texto(fd, 'orden', datos.orden ?? 0);
     fd.append('caracteristicas', JSON.stringify(datos.caracteristicas || {}));
     (datos.archivosNuevos || []).forEach((f) => fd.append('imagenes', f));
     const rec = await pb.collection('productos').create(fd);
     await cargarProductos();
     return transformProducto(rec);
-  }, [cargarProductos]);
+  }, [cargarProductos, categorias]);
 
   const actualizarProducto = useCallback(async (id, datos) => {
     const fd = new FormData();
+
+    console.log("Categorías disponibles en el contexto:", categorias);
+
+    const categoriaSeleccionada = categorias.find(c => c.slug === datos.categoriaSlug);
+    
+    // Generación de código respetando si el usuario escribió uno o lo dejó vacío para regenerarlo
+    const sigla = categoriaSeleccionada?.siglas || 'PROD';
+    const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
+    const codigoFinal = datos.codigo && datos.codigo.trim() !== '' 
+                        ? datos.codigo 
+                        : `${sigla.toUpperCase()}-${numeroAleatorio}`;
+    
+    const nombreCategoria = categoriaSeleccionada ? categoriaSeleccionada.nombre : datos.categoria;
     const slug = datos.slug?.trim() || slugify(datos.nombre);
+
     texto(fd, 'slug', slug);
     texto(fd, 'nombre', datos.nombre);
     texto(fd, 'categoriaSlug', datos.categoriaSlug);
-    texto(fd, 'categoria', datos.categoria);
+    texto(fd, 'categoria', nombreCategoria);
     texto(fd, 'descripcion', datos.descripcion);
     texto(fd, 'precio', datos.precio);
     texto(fd, 'tiempoElaboracion', datos.tiempoElaboracion);
     texto(fd, 'disponibilidad', datos.disponibilidad);
-    texto(fd, 'codigo', datos.codigo);
+    texto(fd, 'codigo', codigoFinal);
     texto(fd, 'orden', datos.orden ?? 0);
     fd.append('caracteristicas', JSON.stringify(datos.caracteristicas || {}));
-    // Conservar archivos existentes (por nombre) + añadir nuevos.
-    (datos.imagenesExistentes || []).forEach((fn) => fd.append('imagenes', fn));
-    (datos.archivosNuevos || []).forEach((f) => fd.append('imagenes', f));
+
+    if (datos.archivosNuevos && datos.archivosNuevos.length > 0) {
+      (datos.archivosNuevos || []).forEach((f) => fd.append('imagenes', f));
+    }
     const rec = await pb.collection('productos').update(id, fd);
     await cargarProductos();
     return transformProducto(rec);
-  }, [cargarProductos]);
+  }, [cargarProductos, categorias]);
 
   const eliminarProducto = useCallback(async (id) => {
     await pb.collection('productos').delete(id);
@@ -235,8 +269,11 @@ export function AppProvider({ children }) {
     texto(fd, 'nombre', datos.nombre);
     texto(fd, 'descripcion', datos.descripcion);
     texto(fd, 'orden', datos.orden ?? 0);
-    (datos.imagenesExistentes || []).forEach((fn) => fd.append('portada', fn));
+    // (datos.imagenesExistentes || []).forEach((fn) => fd.append('portada', fn));
+    // (datos.archivosNuevos || []).forEach((f) => fd.append('portada', f));
+    if (datos.archivosNuevos && datos.archivosNuevos.length > 0) {
     (datos.archivosNuevos || []).forEach((f) => fd.append('portada', f));
+  }
     const rec = await pb.collection('categorias').update(id, fd);
     await cargarCategorias();
     return transformCategoria(rec);
@@ -273,12 +310,15 @@ export function AppProvider({ children }) {
     texto(fd, 'resena', datos.resena);
     texto(fd, 'producto', datos.producto);
     texto(fd, 'orden', datos.orden ?? 0);
+    // if (datos.archivosNuevos?.[0]) {
+    //   fd.append('foto', datos.archivosNuevos[0]);
+    // } else if (datos.imagenesExistentes?.[0]) {
+    //   fd.append('foto', datos.imagenesExistentes[0]);
+    // } else {
+    //   fd.append('foto', '');
+    // }
     if (datos.archivosNuevos?.[0]) {
-      fd.append('foto', datos.archivosNuevos[0]);
-    } else if (datos.imagenesExistentes?.[0]) {
-      fd.append('foto', datos.imagenesExistentes[0]);
-    } else {
-      fd.append('foto', '');
+    fd.append('foto', datos.archivosNuevos[0]);
     }
     const rec = await pb.collection('testimonios').update(id, fd);
     await cargarTestimonios();
