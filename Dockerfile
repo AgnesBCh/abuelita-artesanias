@@ -1,45 +1,20 @@
-# syntax = docker/dockerfile:1
+FROM alpine:latest
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=22.14.0
-FROM node:${NODE_VERSION}-slim AS base
+# Instalar dependencias esenciales para PocketBase y HTTPS
+RUN apk add --no-cache ca-certificates unzip tzdata
 
-LABEL fly_launch_runtime="Node.js"
+# Definir la versión de PocketBase que estás usando
+ARG PB_VERSION=0.22.8
 
-# Node.js app lives here
-WORKDIR /app
+# Descargar y descomprimir PocketBase para Linux
+ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip /tmp/pb.zip
+RUN unzip /tmp/pb.zip -d /pb/
 
-# Set production environment
-ENV NODE_ENV="production"
+# Directorio de trabajo
+WORKDIR /pb
 
+# Exponer el puerto por defecto de PocketBase
+EXPOSE 8090
 
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
-
-# Install node modules
-COPY package-lock.json package.json ./
-RUN npm ci --include=dev
-
-# Copy application code
-COPY . .
-
-# Build application
-RUN npm run build
-
-# Remove development dependencies
-RUN npm prune --omit=dev
-
-
-# Final stage for app image
-FROM base
-
-# Copy built application
-COPY --from=build /app /app
-
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+# Iniciar PocketBase apuntando al volumen persistente 'pb_data' en el puerto 8090
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090"]
