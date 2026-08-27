@@ -1,19 +1,32 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useSearchParams } from 'react-router-dom';
 import useCatalogo from '@/hooks/useCatalogo';
+import BuscadorInteligente from '@/components/BuscadorInteligente';
 
 export default function Catalogo() {
   const { productos, categorias, cargando, error } = useCatalogo();
   const [params, setParams] = useSearchParams();
+  const [recomendaciones, setRecomendaciones] = useState(null);
+  const [consultaIA, setConsultaIA] = useState('');
+  const [buscadorKey, setBuscadorKey] = useState(0);
   const categoriaActiva = params.get('categoria') || 'todos';
 
-  const visibles = useMemo(
-    () =>
-      categoriaActiva === 'todos'
-        ? productos
-        : productos.filter((p) => p.categoriaSlug === categoriaActiva),
-    [productos, categoriaActiva]
+  const visibles = useMemo(() => {
+    if (recomendaciones) return recomendaciones.map((item) => item.producto);
+    return categoriaActiva === 'todos'
+      ? productos
+      : productos.filter((p) => p.categoriaSlug === categoriaActiva);
+  }, [productos, categoriaActiva, recomendaciones]);
+
+  const recibirResultados = useCallback((resultados, consulta) => {
+    setRecomendaciones(resultados);
+    setConsultaIA(consulta);
+  }, []);
+
+  const recomendacionPorId = useMemo(
+    () => new Map((recomendaciones || []).map((item) => [item.producto.id, item])),
+    [recomendaciones]
   );
 
   const filtrar = (slug) => setParams(slug === 'todos' ? {} : { categoria: slug });
@@ -33,12 +46,19 @@ export default function Catalogo() {
           <p className="kicker">Catálogo</p>
           <h1 className="titulo-seccion">Piezas hechas a mano, una por una</h1>
 
-          <div className="mt-9 flex flex-wrap gap-3">
+          <BuscadorInteligente key={buscadorKey} productos={productos} onResultados={recibirResultados} />
+
+          <div className="mt-9 flex flex-wrap items-center gap-3">
             {[{ slug: 'todos', nombre: 'Todos' }, ...categorias].map((c) => (
               <button
                 key={c.slug}
                 type="button"
-                onClick={() => filtrar(c.slug)}
+                onClick={() => {
+                  setRecomendaciones(null);
+                  setConsultaIA('');
+                  setBuscadorKey((valor) => valor + 1);
+                  filtrar(c.slug);
+                }}
                 className="boton-linea"
                 style={
                   categoriaActiva === c.slug
@@ -50,6 +70,13 @@ export default function Catalogo() {
               </button>
             ))}
           </div>
+
+          {consultaIA && recomendaciones?.length > 0 && (
+            <div className="mt-9">
+              <p className="kicker">Selección inteligente</p>
+              <h2 className="fuente-display mt-2 text-2xl">Lo que mejor encaja contigo</h2>
+            </div>
+          )}
 
           {error && (
             <p className="mt-8 text-sm text-[rgba(44,44,44,0.6)]">
@@ -75,6 +102,12 @@ export default function Catalogo() {
                     />
                   </div>
                   <div className="p-6">
+                    {recomendacionPorId.has(producto.id) && (
+                      <p className="mb-3 flex items-center gap-2 text-xs leading-relaxed texto-oro">
+                        <span aria-hidden="true">✦</span>
+                        {recomendacionPorId.get(producto.id).razon}
+                      </p>
+                    )}
                     <p className="text-[0.62rem] uppercase tracking-[0.2em] texto-oro">{producto.categoria}</p>
                     <h2 className="fuente-display mt-2 text-xl">{producto.nombre}</h2>
                     <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[rgba(44,44,44,0.65)]">

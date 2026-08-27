@@ -11,6 +11,7 @@ import Catalogo from '@/pages/Catalogo.jsx';
 import ProductoDetalle from '@/pages/ProductoDetalle.jsx';
 import Admin from '@/pages/Admin.jsx';
 import Login from '@/pages/Login.jsx';
+import AsistenteIA from '@/components/AsistenteIA.jsx';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
             </Routes>
           </main>
           <Footer />
+          <AsistenteIA />
         </Router>
       </AppProvider>
     </AuthProvider>

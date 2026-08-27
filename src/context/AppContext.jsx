@@ -15,6 +15,7 @@ import {
   fallbackCategoria,
   fallbackTestimonio,
 } from '@/lib/imagenes';
+import { CATEGORIAS_DEMO, PRODUCTOS_DEMO } from '@/data/catalogoDemo';
 
 /**
  * AppContext — estado global de la tienda Lira & Lino respaldado por la nube.
@@ -92,8 +93,8 @@ const transformTestimonio = (rec) => ({
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [productos, setProductos] = useState([]);
-  const [categorias, setCategorias] = useState([]);
+  const [productos, setProductos] = useState(PRODUCTOS_DEMO);
+  const [categorias, setCategorias] = useState(CATEGORIAS_DEMO);
   const [testimonios, setTestimonios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -103,7 +104,9 @@ export function AppProvider({ children }) {
   const cargarProductos = useCallback(async () => {
     try {
       const lista = await pb.collection('productos').getFullList({ sort: 'orden,created' });
-      setProductos(lista.map(transformProducto));
+      const remotos = lista.map(transformProducto);
+      const slugs = new Set(remotos.map((item) => item.slug));
+      setProductos([...remotos, ...PRODUCTOS_DEMO.filter((item) => !slugs.has(item.slug))]);
     } catch (err) {
       console.error('Error cargando productos:', err);
       setError(err);
@@ -113,7 +116,9 @@ export function AppProvider({ children }) {
   const cargarCategorias = useCallback(async () => {
     try {
       const lista = await pb.collection('categorias').getFullList({ sort: 'orden,created' });
-      setCategorias(lista.map(transformCategoria));
+      const remotas = lista.map(transformCategoria);
+      const slugs = new Set(remotas.map((item) => item.slug));
+      setCategorias([...remotas, ...CATEGORIAS_DEMO.filter((item) => !slugs.has(item.slug))]);
     } catch (err) {
       console.error('Error cargando categorías:', err);
       setError(err);

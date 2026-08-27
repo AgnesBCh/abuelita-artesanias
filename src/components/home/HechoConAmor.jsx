@@ -1,11 +1,11 @@
 import React from 'react';
-import { COLLAGE } from '@/data/catalogoFallback';
+import { COLLAGE_DEMO } from '@/data/catalogoDemo';
 
 /** Collage fotográfico del proceso artesanal, en columnas de distinto tamaño. */
 export default function HechoConAmor() {
-  const columnaA = COLLAGE.slice(0, 2);
-  const columnaB = COLLAGE.slice(2, 4);
-  const columnaC = COLLAGE.slice(4);
+  const columnaA = COLLAGE_DEMO.slice(0, 2);
+  const columnaB = COLLAGE_DEMO.slice(2, 4);
+  const columnaC = COLLAGE_DEMO.slice(4);
 
   const renderColumna = (items, extraClass = '') => (
     <div className={`flex flex-col gap-4 ${extraClass}`}>
